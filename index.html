@@ -31,11 +31,12 @@
         data-show-log="false" data-show-fps-style="x:0,y:0,size:12,textColor:0xffffff,bgAlpha:0.9"></div>
         <script src="libs//modules/egret/egret.js" defer></script>
         <script src="libs//modules/egret/egret.web.js" defer></script>
+        <script src="libs//modules/assetsmanager/assetsmanager.js" defer></script>
+        <script src="libs//modules/tween/tween.js" defer></script>
 
         <script type="module" src="/src/main.ts" defer></script>
         <script defer>
             document.addEventListener("DOMContentLoaded", function (){
-
                 egret.runEgret({
                     renderMode: "webgl", audioType: 0, calculateCanvasScaleFactor: function (context) {
                         var backingStore = context.backingStorePixelRatio ||

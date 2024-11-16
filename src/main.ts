@@ -1,204 +1,184 @@
-class MapNode {
-  nodes: MapNode[] = []
-  pos: number
-  x: number
-  y: number
-  v: number
-  prev: MapNode
-  cost: number = 0
-  c: number = 0
-  token: number = 0
-  constructor(x, y, v) {
-    this.x = x
-    this.y = y
-    this.v = v
-  }
-}
-export class Main extends egret.DisplayObjectContainer {
-  bm: egret.Bitmap
-  map_node
-  map_data
-  $onAddToStage(stage: egret.Stage, nestLevel: number): void {
-    super.$onAddToStage(stage, nestLevel)
-    this.createGameScene()
-  }
-  protected async createGameScene() {
-    let w = 50
-    let h = 50
-    let map_data = this.createMap(w, h)
-    map_data[0] = 0
-    map_data[240] = 0
-    let map_node: MapNode[] = this.createNodes(w, h, map_data)
+//////////////////////////////////////////////////////////////////////////////////////
+//
+//  Copyright (c) 2014-present, Egret Technology.
+//  All rights reserved.
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of the Egret nor the
+//       names of its contributors may be used to endorse or promote products
+//       derived from this software without specific prior written permission.
+//
+//  THIS SOFTWARE IS PROVIDED BY EGRET AND CONTRIBUTORS "AS IS" AND ANY EXPRESS
+//  OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+//  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+//  IN NO EVENT SHALL EGRET AND CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+//  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;LOSS OF USE, DATA,
+//  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+//  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+//  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+//  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+//////////////////////////////////////////////////////////////////////////////////////
+import { LoadingUI } from "./LoadingUI";
 
-    //draw
-    let shape = new egret.Sprite()
-    for (let i = 0; i < map_data.length; i++) {
-      if (map_data[i] == 1) {
-        this.drawNode(shape, 0, map_node[i].x, map_node[i].y)
-      }
+window['Main'] = class Main extends egret.DisplayObjectContainer {
+
+    public constructor() {
+        super();
+        this.addEventListener(egret.Event.ADDED_TO_STAGE, this.onAddToStage, this);
     }
-    this.addChild(shape)
 
-    shape.scaleX = shape.scaleY = 0.25
-    let debug_shape = new egret.Sprite()
-    debug_shape.scaleX = debug_shape.scaleY = 0.25
-    this.addChild(debug_shape)
-    this.map_data = map_data
-    this.map_node = map_node
-    let start = map_node[240]
-    let end = map_node[0]
-    let path = await this.search(start, end, debug_shape)
-    for (let i of path) {
-      this.drawNode(debug_shape, 0xff0000, i.x, i.y)
-    }
-  }
+    private onAddToStage(event: egret.Event) {
 
-  search_token = 1
+        egret.lifecycle.addLifecycleListener((context) => {
+            // custom lifecycle plugin
 
+            context.onUpdate = () => {
 
-  private drawNode(shape: egret.Sprite, color: number, x: number, y: number) {
-    let w = 50
-    let h = 50
-    let sx = ((Math.sqrt(3) / 2) * w) * x + (y % 2 == 0 ? w : w * .5)
-    let sy = y * w + (w * .5) - w * .25 * y
-    shape.graphics.beginFill(color)
-    // shape.graphics.lineStyle(0.1, 0xffffff)
-    shape.graphics.moveTo(sx, sy - h * .5)
-    for (let i = 0; i < 7; i++) {
-      shape.graphics.lineTo(sx + Math.sin(Math.PI * (60 / 180) * i) * (w * .5), sy + Math.cos(Math.PI * (60 / 180) * i) * (w * .5))
-    }
-    shape.graphics.endFill()
-  }
-  private async search(start: MapNode, end: MapNode, debug: egret.Sprite) {
-    let end_x = end.x
-    let end_y = end.y
-    let base_cost = this.get_cost(start.x, start.y, end.x, end.y)
-    let opens = [[start], [], [], []]
-    let cur: MapNode
-    let searched = []
-    while (true) {
-      await this.draw_debug(debug, opens, start, end, searched)
-      if (opens[0].length == 0 && opens[1].length == 0 && opens[2].length == 0 && opens[3].length == 0) {
-        return null
-      } else {
-        cur = opens[0].pop()
-        if (cur) {
-          searched.push(cur)
-          if (cur == end) {
-            let path = [cur];
-            while (cur.prev && cur.prev != start) {
-              path.push(cur = cur.prev)
             }
-            return path
-          } else {
-            for (let i of cur.nodes) {
-              if (this.search_token > i.token) {
-                i.token = this.search_token
-                i.cost = cur.cost + 1
-                i.prev = cur
-                opens[this.get_cost(i.x, i.y, end_x, end_y) + i.cost - base_cost].push(i)
-              }
+        })
+
+        egret.lifecycle.onPause = () => {
+            egret.ticker.pause();
+        }
+
+        egret.lifecycle.onResume = () => {
+            egret.ticker.resume();
+        }
+
+        this.runGame().catch(e => {
+            console.log(e);
+        })
+
+
+
+    }
+
+    private async runGame() {
+        await this.loadResource()
+        this.createGameScene();
+        const result = await RES.getResAsync("description_json")
+        this.startAnimation(result);
+    }
+
+    private async loadResource() {
+        try {
+            const loadingView = new LoadingUI();
+            this.stage.addChild(loadingView);
+            await RES.loadConfig("resource/default.res.json", "resource/");
+            await RES.loadGroup("preload", 0, loadingView);
+            this.stage.removeChild(loadingView);
+        }
+        catch (e) {
+            console.error(e);
+        }
+    }
+
+    private textfield: egret.TextField;
+
+    /**
+     * 创建游戏场景
+     * Create a game scene
+     */
+    private createGameScene() {
+        let sky = this.createBitmapByName("bg_jpg");
+        this.addChild(sky);
+        let stageW = this.stage.stageWidth;
+        let stageH = this.stage.stageHeight;
+        sky.width = stageW;
+        sky.height = stageH;
+
+        let topMask = new egret.Shape();
+        topMask.graphics.beginFill(0x000000, 0.5);
+        topMask.graphics.drawRect(0, 0, stageW, 172);
+        topMask.graphics.endFill();
+        topMask.y = 33;
+        this.addChild(topMask);
+
+        let icon = this.createBitmapByName("egret_icon_png");
+        this.addChild(icon);
+        icon.x = 26;
+        icon.y = 33;
+
+        let line = new egret.Shape();
+        line.graphics.lineStyle(2, 0xffffff);
+        line.graphics.moveTo(0, 0);
+        line.graphics.lineTo(0, 117);
+        line.graphics.endFill();
+        line.x = 172;
+        line.y = 61;
+        this.addChild(line);
+
+
+        let colorLabel = new egret.TextField();
+        colorLabel.textColor = 0xffffff;
+        colorLabel.width = stageW - 172;
+        colorLabel.textAlign = "center";
+        colorLabel.text = "Hello Egret";
+        colorLabel.size = 24;
+        colorLabel.x = 172;
+        colorLabel.y = 80;
+        this.addChild(colorLabel);
+
+        let textfield = new egret.TextField();
+        this.addChild(textfield);
+        textfield.alpha = 0;
+        textfield.width = stageW - 172;
+        textfield.textAlign = egret.HorizontalAlign.CENTER;
+        textfield.size = 24;
+        textfield.textColor = 0xffffff;
+        textfield.x = 172;
+        textfield.y = 135;
+        this.textfield = textfield;
+
+
+    }
+
+    /**
+     * 根据name关键字创建一个Bitmap对象。name属性请参考resources/resource.json配置文件的内容。
+     * Create a Bitmap object according to name keyword.As for the property of name please refer to the configuration file of resources/resource.json.
+     */
+    private createBitmapByName(name: string) {
+        let result = new egret.Bitmap();
+        let texture: egret.Texture = RES.getRes(name);
+        result.texture = texture;
+        return result;
+    }
+
+    /**
+     * 描述文件加载成功，开始播放动画
+     * Description file loading is successful, start to play the animation
+     */
+    private startAnimation(result: string[]) {
+        let parser = new egret.HtmlTextParser();
+
+        let textflowArr = result.map(text => parser.parse(text));
+        let textfield = this.textfield;
+        let count = -1;
+        let change = () => {
+            count++;
+            if (count >= textflowArr.length) {
+                count = 0;
             }
-          }
-        } else {
-          if (opens[0].length == 0) {
-            base_cost++
-            opens.shift()
-            opens.push([])
-          }
-        }
-      }
+            let textFlow = textflowArr[count];
+
+            // 切换描述内容
+            // Switch to described content
+            textfield.textFlow = textFlow;
+            let tw = egret.Tween.get(textfield);
+            tw.to({ "alpha": 1 }, 200);
+            tw.wait(2000);
+            tw.to({ "alpha": 0 }, 200);
+            tw.call(change, this);
+        };
+
+        change();
     }
-  }
-
-  private async draw_debug(debug: egret.Sprite, opens: MapNode[][], start: MapNode, end: MapNode, searched: MapNode[]) {
-    return new Promise(resolve => {
-      if (debug.graphics['node'] == null) {
-        debug.graphics["node"] = []
-      }
-      debug.graphics.clear()
-      this.drawNode(debug, 0xff0000, start.x, start.y)
-      this.drawNode(debug, 0x00ff00, end.x, end.y)
-      for (let i of debug.graphics["node"]) {
-        this.drawNode(debug, 0xffeeff, i.x, i.y)
-      }
-      // for (let i of opens[0]) {
-      //   this.drawNode(debug, 0xffeeff, i.x, i.y)
-      //   debug.graphics["node"].push(i)
-      // }
-      for (let i of opens[1]) {
-        this.drawNode(debug, 0x992299, i.x, i.y)
-      }
-      for (let i of opens[2]) {
-        this.drawNode(debug, 0x992299, i.x, i.y)
-      }
-      for (let i of searched) {
-        this.drawNode(debug, 0x992299, i.x, i.y)
-      }
-      setTimeout(resolve, 10)
-    })
-  }
-
-  private get_cost(start_x, start_y, end_x, end_y) {
-    return Math.abs(end_x - start_x) + Math.abs(end_y - start_y)
-  }
-
-  private createMap(w: number, h: number) {
-    let map_data = [];
-    for (let i = 0; i < w * h; i++) {
-      map_data[i] = Math.random() > .7
-    }
-    return map_data
-  }
-
-  private idx_to_pos_x(idx, w, h) {
-    return idx % w >> 0
-  }
-  private idx_to_pos_y(idx, w, h) {
-    return idx / w >> 0
-  }
-
-  private pos_to_idx(x, y, w, h) {
-    return x + y * w
-  }
-
-  private createNodes(w: number, h: number, data: number[]) {
-    let r: MapNode[] = []
-    for (let i = 0; i < data.length; i++) {
-      r[i] = new MapNode(i % w, i / w >> 0, data[i])
-    }
-    for (let i = 0; i < r.length; i++) {
-      let x = this.idx_to_pos_x(i, w, h)
-      let y = this.idx_to_pos_y(i, w, h)
-      if (x > 0) {
-        let left = this.pos_to_idx(x - 1, y, w, h)
-        data[left] == 0 && r[i].nodes.push(r[left])
-      }
-      if(x<w-1){
-        let right = this.pos_to_idx(x+1,y,w,h)
-          data[right]==0 && r[i].nodes.push(r[right])
-      }
-      if(y>0){
-        let up = this.pos_to_idx(x,y-1,w,h)
-        data[up] == 0 && r[i].nodes.push(r[up])
-
-        if(x<w-1){
-          let up_right = this.pos_to_idx(x+1,y-1,w,h)
-          data[up_right]==0&&r[i].nodes.push(r[up_right])
-        }
-      }
-      if(y<h-1){
-        let down = this.pos_to_idx(x,y+1,w,h)
-        data[down] == 0 &&r[i].nodes.push(r[down])
-
-        if(x<w-1){
-          let down_right = this.pos_to_idx(x+1,y+1,w,h)
-          data[down_right]==0&&r[i].nodes.push(r[down_right])
-        }
-      }
-
-    }
-    return r
-  }
 }
-window["Main"] = Main
