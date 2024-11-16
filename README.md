@@ -1,3 +1,9 @@
-# egret-vite
+# debug
+npm run dev
 
-[Edit in StackBlitz next generation editor ⚡️](https://stackblitz.com/~/github.com/qvolcano/egret-vite)
+# build
+npm run build
+
+# preview
+npm run preview
+
