@@ -47,7 +47,9 @@ export class Main extends egret.DisplayObjectContainer {
     this.map_node = map_node
     let start = map_node[240]
     let end = map_node[0]
+    console.time()
     let path = await this.search(start, end, debug_shape)
+    console.timeEnd()
     for (let i of path) {
       this.drawNode(debug_shape, 0xff0000, i.x, i.y)
     }
@@ -77,7 +79,7 @@ export class Main extends egret.DisplayObjectContainer {
     let cur: MapNode
     let searched = []
     while (true) {
-      await this.draw_debug(debug, opens, start, end, searched)
+    //   await this.draw_debug(debug, opens, start, end, searched)
       if (opens[0].length == 0 && opens[1].length == 0 && opens[2].length == 0 && opens[3].length == 0) {
         return null
       } else {
